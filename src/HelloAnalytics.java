@@ -15,7 +15,9 @@ import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.google.api.services.analyticsreporting.v4.AnalyticsReportingScopes;
 import com.google.api.services.analyticsreporting.v4.AnalyticsReporting;
@@ -50,21 +52,49 @@ public class HelloAnalytics {
 	private static NetHttpTransport httpTransport;
 	private static FileDataStoreFactory dataStoreFactory;
 
+	public static ArrayList<HashMap<String, String>> sessionList;
+	public static ArrayList<HashMap<String, String>> eventList;
+	public static HashMap<String, String> map = new HashMap<>();
+
+	@SuppressWarnings("static-access")
 	public static void main(String[] args) {
+		sessionList = new ArrayList<>();
+		eventList = new ArrayList<>();
+
 		try {
 			AnalyticsReporting service = initializeAnalyticsReporting();
-
-			// Default View
-			// GetReportsResponse response = getReport(service);
-			// printResponse(response);
 
 			// Get all Events with their respective actions
 			GetReportsResponse myResponseScreens = getMyReportScreens(service);
 			printMyResponseScreens(myResponseScreens);
 
-			// Get all Events with their respective actions
+			// // Get all Events with their respective actions
 			 GetReportsResponse myResponseEvent = getMyReportEvent(service);
 			 printMyResponseEvent(myResponseEvent);
+			 
+			 
+			 System.out.println("Session List: ");
+			 printList(sessionList);
+			 
+			 System.out.println("\nEvent List: ");
+			 printList(eventList);
+			 
+			 //Write to server
+			 Server s = new Server();
+			 s.deleteEvent();
+			 s.deleteSession();
+			 
+			 //Print Tables
+			 s.printSession();
+			 s.printEvent();
+			 
+			 //Post
+			 s.postSession(sessionList);
+			 s.postEvent(eventList);
+			 
+			 //Print Tables
+			 s.printSession();
+			 s.printEvent();
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -98,84 +128,10 @@ public class HelloAnalytics {
 				.setApplicationName(APPLICATION_NAME).build();
 	}
 
-	/**
-	 * Query the Analytics Reporting API V4. Constructs a request for the
-	 * sessions for the past seven days. Returns the API response.
-	 *
-	 * @param service
-	 * @return GetReportResponse
-	 * @throws IOException
-	 */
-	private static GetReportsResponse getReport(AnalyticsReporting service) throws IOException {
-		// Create the DateRange object.
-		DateRange dateRange = new DateRange();
-		dateRange.setStartDate("7DaysAgo");
-		dateRange.setEndDate("today");
-
-		// Create the Metrics object.
-		Metric sessions = new Metric().setExpression("ga:screenviews").setAlias("screenviews");
-
-		// Create the Dimensions object.
-		Dimension browser = new Dimension().setName("ga:screenName");
-
-		// Create the ReportRequest object.
-		ReportRequest request = new ReportRequest().setViewId(VIEW_ID).setDateRanges(Arrays.asList(dateRange))
-				.setDimensions(Arrays.asList(browser)).setMetrics(Arrays.asList(sessions));
-
-		ArrayList<ReportRequest> requests = new ArrayList<ReportRequest>();
-		requests.add(request);
-
-		// Create the GetReportsRequest object.
-		GetReportsRequest getReport = new GetReportsRequest().setReportRequests(requests);
-
-		// Call the batchGet method.
-		GetReportsResponse response = service.reports().batchGet(getReport).execute();
-
-		// Return the response.
-		return response;
-	}
-
-	/**
-	 * Parses and prints the Analytics Reporting API V4 response.
-	 *
-	 * @param response
-	 *            the Analytics Reporting API V4 response.
-	 */
-	private static void printResponse(GetReportsResponse response) {
-
-		for (Report report : response.getReports()) {
-			ColumnHeader header = report.getColumnHeader();
-			List<String> dimensionHeaders = header.getDimensions();
-			List<MetricHeaderEntry> metricHeaders = header.getMetricHeader().getMetricHeaderEntries();
-			List<ReportRow> rows = report.getData().getRows();
-
-			if (rows == null) {
-				System.out.println("No data found for " + VIEW_ID);
-				return;
-			}
-
-			for (ReportRow row : rows) {
-				List<String> dimensions = row.getDimensions();
-				List<DateRangeValues> metrics = row.getMetrics();
-				for (int i = 0; i < dimensionHeaders.size() && i < dimensions.size(); i++) {
-					System.out.println(dimensionHeaders.get(i) + ": " + dimensions.get(i));
-				}
-
-				for (int j = 0; j < metrics.size(); j++) {
-					System.out.print("Date Range (" + j + "): ");
-					DateRangeValues values = metrics.get(j);
-					for (int k = 0; k < values.getValues().size() && k < metricHeaders.size(); k++) {
-						System.out.println(metricHeaders.get(k).getName() + ": " + values.getValues().get(k));
-					}
-				}
-			}
-		}
-	}
-
 	private static GetReportsResponse getMyReportEvent(AnalyticsReporting service) throws Exception {
 		DateRange dateRange = new DateRange();
 		dateRange.setStartDate("2016-10-26");
-		dateRange.setEndDate("2016-10-27");
+		dateRange.setEndDate("2016-11-23");
 
 		Metric totalEvents = new Metric().setExpression("ga:totalEvents").setAlias("totalEvents");
 
@@ -204,18 +160,20 @@ public class HelloAnalytics {
 				return;
 			}
 
+			// HashMap to enter data for each entity
 			System.out.println("Actions:");
 			for (ReportRow row : rows) {
 				List<String> dimensions = row.getDimensions();
 				List<DateRangeValues> metrics = row.getMetrics();
 				for (int i = 0; i < dimensionHeaders.size() && i < dimensions.size(); i++) {
-					System.out.print("  " + dimensions.get(i) + ": ");
+					map.put("Name", dimensions.get(i));
 				}
 
 				for (int j = 0; j < metrics.size(); j++) {
 					DateRangeValues values = metrics.get(j);
 					for (int k = 0; k < values.getValues().size() && k < metricHeaders.size(); k++) {
-						System.out.println(values.getValues().get(k));
+						map.put("Count", values.getValues().get(k) + "");
+						reIntialize(false);
 					}
 				}
 			}
@@ -225,7 +183,7 @@ public class HelloAnalytics {
 	private static GetReportsResponse getMyReportScreens(AnalyticsReporting service) throws Exception {
 		DateRange dateRange = new DateRange();
 		dateRange.setStartDate("2016-10-26");
-		dateRange.setEndDate("2016-10-27");
+		dateRange.setEndDate("2016-11-23");
 
 		// Create the Metrics object.
 		Metric screens = new Metric().setExpression("ga:screenviews").setAlias("screenviews");
@@ -256,6 +214,7 @@ public class HelloAnalytics {
 				return;
 			}
 
+			// HashMap to enter data for each entity
 			System.out.println("Screens:");
 			for (ReportRow row : rows) {
 				List<String> dimensions = row.getDimensions();
@@ -263,19 +222,43 @@ public class HelloAnalytics {
 				String screenName = null;
 				for (int i = 0; i < dimensionHeaders.size() && i < dimensions.size(); i++) {
 					screenName = dimensions.get(i);
-					if (!screenName.startsWith("com.example.")) {
-						System.out.print("  " + dimensions.get(i) + ": ");
+					if (!screenName.startsWith("com.example.") && !screenName.endsWith("Stop")) {
+						map.put("Name", screenName);
 					}
 				}
 
-				if (!screenName.startsWith("com.example.")) {
+				if (!screenName.startsWith("com.example.") && !screenName.endsWith("Stop")) {
 					for (int j = 0; j < metrics.size(); j++) {
 						DateRangeValues values = metrics.get(j);
 						for (int k = 0; k < values.getValues().size() && k < metricHeaders.size(); k++) {
-							System.out.println(values.getValues().get(k));
+							map.put("Count", values.getValues().get(k) + "");
+							reIntialize(true);
 						}
 					}
 				}
+			}
+		}
+	}
+
+	public static void reIntialize(boolean session) {
+		if (session) {
+			sessionList.add(map);
+			map = new HashMap<>();
+		} else {
+			eventList.add(map);
+			map = new HashMap<>();
+		}
+	}
+
+	public static void printList(ArrayList<HashMap<String, String>> list) {
+		// Print ArrayList of HashMap
+		int i = 0;
+		for (HashMap<String, String> h : list) {
+			i++;
+			for (Map.Entry<String, String> entry : h.entrySet()) {
+				String key = entry.getKey();
+				String value = entry.getValue();
+				System.out.println(i + "." + " " + key + " : " + value);
 			}
 		}
 	}
