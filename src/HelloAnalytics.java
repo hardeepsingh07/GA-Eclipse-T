@@ -131,7 +131,7 @@ public class HelloAnalytics {
 	private static GetReportsResponse getMyReportEvent(AnalyticsReporting service) throws Exception {
 		DateRange dateRange = new DateRange();
 		dateRange.setStartDate("2016-10-26");
-		dateRange.setEndDate("2016-11-23");
+		dateRange.setEndDate("2016-11-29");
 
 		Metric totalEvents = new Metric().setExpression("ga:totalEvents").setAlias("totalEvents");
 
@@ -183,7 +183,7 @@ public class HelloAnalytics {
 	private static GetReportsResponse getMyReportScreens(AnalyticsReporting service) throws Exception {
 		DateRange dateRange = new DateRange();
 		dateRange.setStartDate("2016-10-26");
-		dateRange.setEndDate("2016-11-23");
+		dateRange.setEndDate("2016-11-29");
 
 		// Create the Metrics object.
 		Metric screens = new Metric().setExpression("ga:screenviews").setAlias("screenviews");
